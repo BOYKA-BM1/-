@@ -2077,7 +2077,7 @@ button{min-height:42px;}
     </div>
     <button onclick="closeMenu()" style="background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);color:var(--gold);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>
   </div>
-  <div style="padding:.7rem .8rem;display:flex;flex-direction:column;gap:.2rem;" id="drawer-links">
+  <div style="padding:.7rem .8rem 3rem;display:flex;flex-direction:column;gap:.2rem;" id="drawer-links">
     <button class="dnb on" id="nav-home"     onclick="closeMenu();SP('home')">🏠 الرئيسية</button>
     <button class="dnb"    id="nav-prayer"   onclick="closeMenu();SP('prayer')">🕌 مواقيت الصلاة</button>
     <button class="dnb"    id="nav-adhan"    onclick="closeMenu();SP('adhan')">🔊 الأذان</button>
@@ -2091,12 +2091,8 @@ button{min-height:42px;}
     <button class="dnb"    id="nav-tafsir"   onclick="closeMenu();SP('tafsir')">📚 كتب التفسير</button>
     <button class="dnb nav-qibla-last" id="nav-qibla" onclick="closeMenu();SP('qibla')">🧭 اتجاه القبلة</button>
     <div style="height:1px;background:rgba(201,168,76,.12);margin:.4rem 1rem;"></div>
-    <button class="dnb" onclick="closeMenu();SP('khatma')" style="color:var(--gold)!important;font-weight:600;">📖 خطة الختمة</button>
-  </div>
-  <div style="padding:1rem 1.4rem;border-top:1px solid rgba(201,168,76,.1);position:absolute;bottom:0;width:100%;">
-    <div style="padding:1rem 1.2rem 1.5rem;border-top:1px solid rgba(201,168,76,.1);margin-top:.5rem;text-align:center;">
-    <div style="font-size:.62rem;color:rgba(201,168,76,.4);line-height:1.8;">نور القرآن • المصحف الشريف الكامل<br>جميع الحقوق محفوظة</div>
-  </div>
+    <button class="dnb" id="nav-khatma" onclick="closeMenu();SP('khatma')" style="color:var(--gold)!important;font-weight:600;">📖 خطة الختمة</button>
+    <div style="height:2rem;"></div>
   </div>
 </div>
 
