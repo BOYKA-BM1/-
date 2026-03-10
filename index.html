@@ -1,110 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-    import { getAuth, signInWithPopup, signOut, onAuthStateChanged,
-             GoogleAuthProvider, FacebookAuthProvider, OAuthProvider
-           } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-    import { getFirestore, doc, setDoc, getDoc, updateDoc, serverTimestamp
-           } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-
-    // ═══ إعدادات Firebase — غيّر هذه القيم بإعداداتك ═══
-    // احصل عليها من: https://console.firebase.google.com
-    const firebaseConfig = {
-      apiKey:            "YOUR_API_KEY",
-      authDomain:        "YOUR_PROJECT.firebaseapp.com",
-      projectId:         "YOUR_PROJECT_ID",
-      storageBucket:     "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId:             "YOUR_APP_ID"
-    };
-
-    const app  = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db   = getFirestore(app);
-
-    // ═══ Providers ═══
-    const googleProv   = new GoogleAuthProvider();
-    const facebookProv = new FacebookAuthProvider();
-    const appleProv    = new OAuthProvider('apple.com');
-    appleProv.addScope('email');
-    appleProv.addScope('name');
-
-    // ═══ تصدير للـ window ═══
-    window._fbAuth = auth;
-    window._fbDB   = db;
-
-    // ═══ مراقبة حالة المستخدم ═══
-    onAuthStateChanged(auth, async user => {
-      window._fbUser = user || null;
-      if (user) {
-        // جلب بيانات المستخدم من Firestore
-        try {
-          const snap = await getDoc(doc(db, 'users', user.uid));
-          if (snap.exists()) {
-            const data = snap.data();
-            window._userData = data;
-            // استعادة الإعدادات
-            if (data.settings) {
-              Object.entries(data.settings).forEach(([k,v]) => {
-                try { localStorage.setItem(k, JSON.stringify(v)); } catch {}
-              });
-            }
-            if (data.adhanSheikhIdx !== undefined && typeof adhanSheikhIdx !== 'undefined') {
-              adhanSheikhIdx = data.adhanSheikhIdx;
-            }
-          } else {
-            // مستخدم جديد — حفظ بياناته
-            await setDoc(doc(db, 'users', user.uid), {
-              uid: user.uid, name: user.displayName,
-              email: user.email, photo: user.photoURL,
-              created: serverTimestamp(), lastSeen: serverTimestamp()
-            });
-          }
-        } catch(e) { console.error('Firestore:', e); }
-      }
-      // تحديث واجهة المستخدم
-      if (typeof updateAuthUI === 'function') updateAuthUI(user);
-    });
-
-    // ═══ دوال Auth ═══
-    window.signInGoogle   = () => signInWithPopup(auth, googleProv).catch(e => { if(e.code!=='auth/popup-closed-by-user') alert('خطأ: '+e.message); });
-    window.signInFacebook = () => signInWithPopup(auth, facebookProv).catch(e => { if(e.code!=='auth/popup-closed-by-user') alert('خطأ: '+e.message); });
-    window.signInApple    = () => signInWithPopup(auth, appleProv).catch(e => { if(e.code!=='auth/popup-closed-by-user') alert('خطأ: '+e.message); });
-    window.signOutUser    = () => signOut(auth).then(() => { window._fbUser=null; updateAuthUI(null); });
-
-    // ═══ حفظ البيانات في Firestore ═══
-    window.saveUserData = async (data) => {
-      const user = auth.currentUser;
-      if (!user) return false;
-      try {
-        await updateDoc(doc(db, 'users', user.uid), {
-          ...data, lastSeen: serverTimestamp()
-        });
-        return true;
-      } catch(e) {
-        // لو مش موجود، أنشئه
-        try { await setDoc(doc(db, 'users', user.uid), { ...data, lastSeen: serverTimestamp() }); return true; }
-        catch { return false; }
-      }
-    };
-
-    // حفظ تلقائي للإعدادات كل 30 ثانية لو المستخدم مسجل
-    setInterval(() => {
-      if (!auth.currentUser) return;
-      const settings = {};
-      ['saved_lat','saved_lng','saved_loc_name','at_auto','at_fajr','at_vib',
-       'adhan_sheikh','calc_method','tasbeeh-total'].forEach(k => {
-        const v = localStorage.getItem(k);
-        if (v !== null) { try { settings[k] = JSON.parse(v); } catch { settings[k]=v; } }
-      });
-      window.saveUserData({ settings, adhanSheikhIdx: typeof adhanSheikhIdx!=='undefined'?adhanSheikhIdx:0 });
-    }, 30000);
-
-  </script>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>نور القرآن — المصحف الشريف الكامل</title>
@@ -2146,50 +2042,6 @@ button{min-height:42px;}
 .khatma-prog-bar{height:6px;background:rgba(201,168,76,.12);border-radius:3px;overflow:hidden;margin:.4rem 0;}
 .khatma-prog-fill{height:100%;background:linear-gradient(90deg,var(--gold3),var(--gold));border-radius:3px;transition:width .5s;}
 
-
-/* ════ Auth Screen ════ */
-#auth-screen{position:fixed;inset:0;background:linear-gradient(160deg,rgba(3,10,6,.99),rgba(13,43,30,.98));
-  z-index:99999;display:flex;align-items:center;justify-content:center;
-  direction:rtl;font-family:Tajawal,sans-serif;opacity:1;transition:opacity .4s;}
-#auth-screen.hidden{opacity:0;pointer-events:none;}
-.auth-box{background:rgba(255,255,255,.03);border:1px solid rgba(201,168,76,.2);
-  border-radius:24px;padding:2.2rem 1.8rem;max-width:400px;width:94%;
-  box-shadow:0 30px 100px rgba(0,0,0,.5);}
-.auth-logo{text-align:center;margin-bottom:1.5rem;}
-.auth-logo-icon{font-size:3rem;filter:drop-shadow(0 0 20px rgba(201,168,76,.4));}
-.auth-logo-title{font-family:'Scheherazade New',serif;font-size:2rem;
-  background:linear-gradient(135deg,#c9a84c,#f0d080);-webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;margin:.3rem 0 .1rem;}
-.auth-logo-sub{font-size:.72rem;color:rgba(255,255,255,.3);}
-.auth-divider{display:flex;align-items:center;gap:.8rem;margin:1.3rem 0;color:rgba(255,255,255,.2);font-size:.72rem;}
-.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:rgba(201,168,76,.12);}
-.auth-btn{width:100%;padding:.8rem;border-radius:14px;cursor:pointer;font-family:Tajawal,sans-serif;
-  font-size:.92rem;font-weight:600;display:flex;align-items:center;justify-content:center;
-  gap:.7rem;margin-bottom:.7rem;transition:all .25s;border:1.5px solid;}
-.auth-btn-google{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:#fff;}
-.auth-btn-google:hover{background:rgba(255,255,255,.1);}
-.auth-btn-facebook{background:rgba(24,119,242,.12);border-color:rgba(24,119,242,.3);color:#60a0f8;}
-.auth-btn-facebook:hover{background:rgba(24,119,242,.2);}
-.auth-btn-apple{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:#fff;}
-.auth-btn-apple:hover{background:rgba(255,255,255,.1);}
-.auth-btn-guest{background:rgba(201,168,76,.06);border-color:rgba(201,168,76,.2);color:rgba(201,168,76,.7);font-size:.82rem;}
-.auth-btn-guest:hover{background:rgba(201,168,76,.12);}
-.auth-btn-icon{width:22px;height:22px;flex-shrink:0;}
-.auth-note{text-align:center;font-size:.62rem;color:rgba(255,255,255,.2);margin-top:1rem;line-height:1.7;}
-
-/* User Avatar في الناف */
-#nav-user-avatar{width:32px;height:32px;border-radius:50%;border:2px solid rgba(201,168,76,.4);
-  cursor:pointer;object-fit:cover;display:none;}
-#nav-user-btn{background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);
-  color:var(--gold);font-family:Tajawal,sans-serif;font-size:.72rem;padding:.3rem .7rem;
-  border-radius:20px;cursor:pointer;display:none;}
-/* Profile panel */
-#user-panel{position:fixed;top:70px;left:50%;transform:translateX(-50%);
-  background:linear-gradient(135deg,rgba(13,43,30,.99),rgba(3,10,6,.99));
-  border:1px solid rgba(201,168,76,.3);border-radius:18px;padding:1.3rem;
-  max-width:320px;width:92%;z-index:9999;direction:rtl;font-family:Tajawal,sans-serif;
-  box-shadow:0 15px 60px rgba(0,0,0,.6);display:none;}
-
 </style>
 </head>
 <body>
@@ -2224,8 +2076,6 @@ button{min-height:42px;}
       </svg>
     </div>
     <button onclick="closeMenu()" style="background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);color:var(--gold);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>
-    <button id="nav-auth-btn" onclick="closeMenu();toggleUserPanel()" style="background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.25);color:var(--gold);font-family:Tajawal,sans-serif;font-size:.75rem;padding:.3rem .7rem;border-radius:20px;cursor:pointer;display:none;align-items:center;gap:.4rem;"></button>
-    <button id="nav-login-btn" onclick="closeMenu();document.getElementById('auth-screen').style.display='flex';document.getElementById('auth-screen').classList.remove('hidden')" style="background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);color:var(--gold);font-family:Tajawal,sans-serif;font-size:.75rem;padding:.3rem .7rem;border-radius:20px;cursor:pointer;display:flex;align-items:center;gap:.3rem;">🔑 دخول</button>
   </div>
   <div style="padding:.7rem .8rem 3rem;display:flex;flex-direction:column;gap:.2rem;" id="drawer-links">
     <button class="dnb on" id="nav-home"     onclick="closeMenu();SP('home')">🏠 الرئيسية</button>
@@ -2247,68 +2097,6 @@ button{min-height:42px;}
 </div>
 
 <!-- NAV BAR -->
-
-<!-- ════ شاشة تسجيل الدخول ════ -->
-<div id="auth-screen">
-  <div class="auth-box">
-    <div class="auth-logo">
-      <div class="auth-logo-icon">🌙</div>
-      <div class="auth-logo-title">نور القرآن</div>
-      <div class="auth-logo-sub">المصحف الشريف الكامل</div>
-    </div>
-
-    <button class="auth-btn auth-btn-google" onclick="signInGoogle()">
-      <svg class="auth-btn-icon" viewBox="0 0 24 24">
-        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-      </svg>
-      تسجيل الدخول بـ Google
-    </button>
-
-    <button class="auth-btn auth-btn-facebook" onclick="signInFacebook()">
-      <svg class="auth-btn-icon" viewBox="0 0 24 24" fill="#1877F2">
-        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-      </svg>
-      تسجيل الدخول بـ Facebook
-    </button>
-
-    <button class="auth-btn auth-btn-apple" onclick="signInApple()">
-      <svg class="auth-btn-icon" viewBox="0 0 24 24" fill="white">
-        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-      </svg>
-      تسجيل الدخول بـ Apple
-    </button>
-
-    <div class="auth-divider">أو</div>
-
-    <button class="auth-btn auth-btn-guest" onclick="continueAsGuest()">
-      👤 متابعة كضيف (بدون حفظ)
-    </button>
-
-    <div class="auth-note">
-      بتسجيل الدخول، بياناتك (الإعدادات، المفضلة، تقدم القراءة)<br>
-      بتتحفظ في السحابة وتتزامن على كل أجهزتك
-    </div>
-  </div>
-</div>
-
-<!-- User Panel -->
-<div id="user-panel">
-  <div style="display:flex;align-items:center;gap:.9rem;margin-bottom:1rem;">
-    <img id="up-avatar" src="" style="width:48px;height:48px;border-radius:50%;border:2px solid rgba(201,168,76,.4);object-fit:cover;" onerror="this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><text y=\'.9em\' font-size=\'90\'></text></svg>'" />
-    <div>
-      <div id="up-name" style="font-size:.95rem;color:#fff;font-weight:600;"></div>
-      <div id="up-email" style="font-size:.68rem;color:rgba(255,255,255,.35);"></div>
-    </div>
-  </div>
-  <div style="display:flex;flex-direction:column;gap:.5rem;">
-    <button onclick="document.getElementById('user-panel').style.display='none';NoorDBUI?.showStatsPanel()" style="background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);color:var(--gold);font-family:Tajawal,sans-serif;font-size:.82rem;padding:.6rem;border-radius:10px;cursor:pointer;">🗄️ قاعدة البيانات</button>
-    <button onclick="signOutUser();document.getElementById('user-panel').style.display='none'" style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:rgba(239,68,68,.8);font-family:Tajawal,sans-serif;font-size:.82rem;padding:.6rem;border-radius:10px;cursor:pointer;">🚪 تسجيل الخروج</button>
-  </div>
-</div>
-
 <nav>
   <div class="nl" onclick="SP('home')" title="نور القرآن">
     <svg width="140" height="44" viewBox="0 0 140 44" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -5503,53 +5291,6 @@ const AI_SYSTEM_PROMPT = `أنت عالم إسلامي ربّاني متخصص �
 ٩. نظّم إجابتك بفقرات واضحة
 ١٠. استشهد بالآيات القرآنية دائماً`;
 
-
-// ════════════════════════════════════════════════════════════════
-// ⚙️ إعدادات الـ API — Cloudflare Worker Proxy
-// بعد نشر الـ worker، غيّر الـ URL هنا
-// ════════════════════════════════════════════════════════════════
-const WORKER_URL = 'https://noor-quran.YOUR-NAME.workers.dev';
-// لو مفيش worker بعد، بيستخدم direct (بس ملاحظة: x-api-key هيبان!)
-const USE_WORKER = WORKER_URL.includes('YOUR-NAME') ? false : true;
-
-async function callClaudeAPI(payload) {
-  const url = USE_WORKER
-    ? WORKER_URL
-    : 'https://api.anthropic.com/v1/messages';
-
-  const headers = { 'Content-Type': 'application/json' };
-  if (!USE_WORKER) {
-    headers['anthropic-dangerous-direct-browser-access'] = 'true';
-    headers['anthropic-version'] = '2023-06-01';
-    // للاستخدام المؤقت فقط — ضع مفتاحك هنا لو مش عندك worker بعد
-    const _k = localStorage.getItem('_noor_api_key') || '';
-    if (_k) headers['x-api-key'] = _k;
-  }
-
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ ...payload, model: payload.model || 'claude-sonnet-4-6' })
-  });
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error?.message || `HTTP ${resp.status}`);
-  }
-  return resp.json();
-}
-
-// ── طلب مفتاح API لو مش عندك worker بعد ──
-function promptApiKey() {
-  const existing = localStorage.getItem('_noor_api_key');
-  if (existing) return;
-  const key = prompt('🔑 أدخل Anthropic API Key لتشغيل الذكاء الاصطناعي:\n(احصل عليه من console.anthropic.com)\n\nأو اتركه فارغاً واضغط OK');
-  if (key && key.startsWith('sk-ant-')) {
-    localStorage.setItem('_noor_api_key', key);
-    alert('✅ تم حفظ المفتاح!');
-  }
-}
-
 let aiMessages = [];
 let aiTyping = false;
 
@@ -5602,17 +5343,26 @@ function aiSend() {
   if(btnSpin) btnSpin.style.display = 'block';
   aiTyping = true;
   
-  // Call Claude API via Worker
-  callClaudeAPI({
-    max_tokens: 2000,
-    system: AI_SYSTEM_PROMPT,
-    messages: aiMessages.slice(-10)
+  // Call Claude API
+  fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 2000,
+      system: AI_SYSTEM_PROMPT,
+      messages: aiMessages.slice(-10)
+    })
   })
+  .then(r => r.json())
   .then(data => {
     const indicator = document.getElementById('ai-typing-indicator');
     if(indicator) indicator.remove();
     
-    const answer = data.content?.[0]?.text || (data.error?.message ? '⚠️ '+data.error.message : 'عذراً، حدث خطأ. حاول مرة أخرى.');
+    const answer = data.content?.[0]?.text || 'عذراً، حدث خطأ. حاول مرة أخرى.';
     aiMessages.push({role:'assistant', content: answer});
     
     const botDiv = document.createElement('div');
@@ -5646,56 +5396,7 @@ function aiSend() {
   });
 }
 
-// ════════════════════════════════════════════════
-// 🕌 ADHAN AUTO-PLAY ON PRAYER TIME (PRECISION)
-// ════════════════════════════════════════════════
-// Override checkPrayerTime to auto-play adhan at exact prayer time
-(function(){
-  let _lastAdhanKey = '';
-  const PRAYER_NAMES_LOCAL = {fajr:'الفجر',sunrise:'الشروق',dhuhr:'الظهر',asr:'العصر',maghrib:'المغرب',isha:'العشاء'};
-  
-  function checkAutoAdhan(){
-    const pt = window.prayerTimes;
-    if(!pt) return;
-    const now = new Date();
-    // Convert decimal time to today's Date object
-    function dec2Date(dec){
-      if(!dec || isNaN(dec)) return null;
-      const t = ((dec%24)+24)%24;
-      const h = Math.floor(t), m = Math.floor((t-h)*60);
-      return new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
-    }
-    ['fajr','dhuhr','asr','maghrib','isha'].forEach(k=>{
-      const pTime = dec2Date(pt[k]);
-      if(!pTime) return;
-      const diff = Math.abs(now - pTime) / 1000; // seconds
-      const key = k + '-' + now.toDateString();
-      // Within 30 seconds of prayer time and not already triggered
-      if(diff <= 30 && diff >= 0 && _lastAdhanKey !== key){
-        _lastAdhanKey = key;
-        const nm = PRAYER_NAMES_LOCAL[k] || k;
-        // Show adhan notification bar
-// in-app adhan bar removed
-        // Auto-play adhan
-        if(typeof playAdhanNow === 'function') playAdhanNow();
-        // Browser notification
-        if(Notification?.permission === 'granted'){
-          try{
-            new Notification('🕌 حان وقت صلاة ' + nm, {
-              body: 'الوقت: ' + pTime.toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'}),
-              icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><text y="28" font-size="28">🕌</text></svg>'
-            });
-          }catch(e){}
-        }
-      }
-    });
-  }
-  
-  // Run every 15 seconds for precise prayer time detection
-  setInterval(checkAutoAdhan, 15000);
-  setTimeout(checkAutoAdhan, 3000);
-  window._checkAutoAdhan = checkAutoAdhan;
-})();
+// [IIFE قديم محذوف — تم استبداله بنظام موحد]
 
 
 // ════════════════════════════════════════════════
@@ -6070,9 +5771,16 @@ async function _loadAITafsir(sn,bookName,surahAr){
   const sm=typeof SM!=='undefined'?SM.find(s=>s.n===sn):null;
   const ayCount=sm?sm.ay:0;
   try{
-    const d=await callClaudeAPI({
-      max_tokens:2000,
-      system:`أنت عالم متخصص في تفسير القرآن الكريم بأسلوب ${bookName}.
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-sonnet-4-5',
+        max_tokens:2000,
+        system:`أنت عالم متخصص في تفسير القرآن الكريم بأسلوب ${bookName}.
 قواعد:
 - فسّر الآيات البارزة في السورة آيةً آيةً
 - اذكر نص كل آية بين ﴿ ﴾ ثم تفسيرها مباشرةً بعدها
@@ -6080,10 +5788,11 @@ async function _loadAITafsir(sn,bookName,surahAr){
 - أذكر فضل السورة إن وُجد
 - الإجابة بالعربية الفصحى فقط
 - نظّم بفقرات واضحة مفصولة بسطر`,
-      messages:[{role:'user',content:`فسّر أبرز آيات سورة ${surahAr||'رقم '+sn} (${ayCount} آية) بأسلوب ${bookName} — فسّر كل آية على حدة بالتفصيل`}]
+        messages:[{role:'user',content:`فسّر أبرز آيات سورة ${surahAr||'رقم '+sn} (${ayCount} آية) بأسلوب ${bookName} — فسّر كل آية على حدة بالتفصيل`}]
+      })
     });
+    const d=await r.json();
     const txt=d.content?.[0]?.text||'';
-    if(d.error) throw new Error(d.error.message);
     if(txt&&b){
       // Format: wrap ﴿...﴾ in ayah divs
       const paragraphs=txt.split(/\n\n+/);
@@ -6141,50 +5850,9 @@ function showDuaNotif(){
   setTimeout(()=>{ if(_duaBanner){ _duaBanner.remove(); _duaBanner=null; } }, 11000);
 }
 
-// ════════════════════════════════════════════════════════
-// 🕌 الأذان التلقائي — يرن عند دخول وقت كل صلاة
-// ════════════════════════════════════════════════════════
-let _lastAutoAdhanPrayer = '';
-let _lastAutoAdhanDate = '';
-let _adhanFiredToday = {};
+// [دالة قديمة محذوفة]
 
-function checkAutoAdhan(){
-  if(!atSettings.auto) return;
-  if(!prayerTimes || !Object.keys(prayerTimes).length) return;
-  const now = new Date();
-  const todayKey = now.toDateString();
-  if(!_adhanFiredToday[todayKey]) _adhanFiredToday = {[todayKey]: {}};
-  const PRAYERS = [
-    {key:'fajr',   name:'الفجر 🌙'},
-    {key:'dhuhr',  name:'الظهر ☀️'},
-    {key:'asr',    name:'العصر 🌤️'},
-    {key:'maghrib',name:'المغرب 🌇'},
-    {key:'isha',   name:'العشاء 🌃'},
-  ];
-  PRAYERS.forEach(p=>{
-    if(_adhanFiredToday[todayKey][p.key]) return;
-    const dec = prayerTimes[p.key];
-    if(!dec || isNaN(dec)) return;
-    const t = ((dec%24)+24)%24;
-    const h = Math.floor(t), m = Math.floor((t-h)*60);
-    const pDate = new Date(now.getFullYear(),now.getMonth(),now.getDate(),h,m,0);
-    const diff = Math.abs(now - pDate);
-    // في حدود 30 ثانية من وقت الصلاة
-    if(diff <= 30000){
-      _adhanFiredToday[todayKey][p.key] = true;
-      // أذان الفجر له إذن خاص
-      if(p.key === 'fajr' && !atSettings.fajr) return;
-      // اهتزاز
-      if(atSettings.vib && navigator.vibrate) navigator.vibrate([500,300,500,300,500]);
-      // عرض إشعار الصلاة
-      _showPrayerAlert(p.name, pDate);
-      // تشغيل الأذان بعد ثانية
-      setTimeout(()=>{ _autoPlayAdhan(); }, 1000);
-    }
-  });
-}
-
-function _showPrayerAlert(prayerName, pDate){
+function _showPrayerAlert_old(prayerName, pDate){
   // إشعار browser
   if(Notification && Notification.permission === 'granted'){
     new Notification('🕌 حان وقت ' + prayerName, {
@@ -6207,7 +5875,7 @@ function _showPrayerAlert(prayerName, pDate){
   setTimeout(()=>{ if(banner.parentNode) banner.remove(); }, 30000);
 }
 
-function _autoPlayAdhan(){
+function _autoPlayAdhan_old(){
   if(!atSettings.auto) return;
   const sheikh = ADHAN_SHEIKHS[adhanSheikhIdx];
   if(!adhanAud) adhanAud = new Audio();
@@ -6217,9 +5885,142 @@ function _autoPlayAdhan(){
   tryN();
 }
 
-// فحص كل 15 ثانية
-setInterval(checkAutoAdhan, 15000);
 
+
+
+// ════════════════════════════════════════════════════════
+// 🕌 نظام الأذان التلقائي — نظيف وموحّد
+// ════════════════════════════════════════════════════════
+let _adhanFiredKeys = new Set(); // مفاتيح الأذانات اللي رنت اليوم
+
+function checkAutoAdhan(){
+  // تحقق من الإعداد
+  const autoOn = typeof atSettings !== 'undefined' ? atSettings.auto : true;
+  if(!autoOn) return;
+
+  // جلب مواقيت الصلاة — من أي مكان متاح
+  const pt = (typeof prayerTimes !== 'undefined' && prayerTimes && Object.keys(prayerTimes).length)
+    ? prayerTimes
+    : (window.prayerTimes || null);
+  if(!pt || !Object.keys(pt).length) return;
+
+  const now = new Date();
+  const todayStr = now.toDateString();
+
+  // مسح مفاتيح يوم أمس
+  if(window._adhanDay !== todayStr){
+    window._adhanDay = todayStr;
+    _adhanFiredKeys = new Set();
+  }
+
+  const PRAYERS = [
+    {key:'fajr',    name:'الفجر 🌙'},
+    {key:'dhuhr',   name:'الظهر ☀️'},
+    {key:'asr',     name:'العصر 🌤️'},
+    {key:'maghrib', name:'المغرب 🌇'},
+    {key:'isha',    name:'العشاء 🌃'},
+  ];
+
+  PRAYERS.forEach(p => {
+    const fireKey = p.key + '-' + todayStr;
+    if(_adhanFiredKeys.has(fireKey)) return;
+
+    const dec = pt[p.key];
+    if(!dec || isNaN(dec)) return;
+
+    // تحويل الوقت العشري لـ Date
+    const t = ((dec % 24) + 24) % 24;
+    const h = Math.floor(t);
+    const m = Math.floor((t - h) * 60);
+    const pDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+
+    // الفرق بالثواني — موجب = الصلاة لسه ما جاتش، سالب = عدت
+    const diffSec = (pDate - now) / 1000;
+
+    // في حدود ثانية واحدة قبل + 59 ثانية بعد وقت الصلاة
+    if(diffSec >= -59 && diffSec <= 1){
+      _adhanFiredKeys.add(fireKey);
+
+      // أذان الفجر — لو إعداده مش شغال، تخطى
+      if(p.key === 'fajr'){
+        const fajrOn = typeof atSettings !== 'undefined' ? atSettings.fajr : true;
+        if(!fajrOn) return;
+      }
+
+      // اهتزاز
+      try{ if(navigator.vibrate) navigator.vibrate([500,300,500,300,500]); }catch{}
+
+      // بانر داخلي
+      _showPrayerBanner(p.name, pDate);
+
+      // إشعار النظام
+      if(typeof Notification !== 'undefined' && Notification.permission === 'granted'){
+        try{
+          new Notification('🕌 حان وقت ' + p.name, {
+            body: 'الأذان يبدأ الآن — استعد للصلاة',
+            icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🕌</text></svg>'
+          });
+        }catch(e){}
+      }
+
+      // تشغيل الأذان بعد ثانية واحدة
+      setTimeout(_fireAdhan, 1200);
+    }
+  });
+}
+
+function _showPrayerBanner(prayerName, pDate){
+  // إزالة أي بانر قديم
+  document.querySelectorAll('[data-prayer-banner]').forEach(e => e.remove());
+
+  const banner = document.createElement('div');
+  banner.setAttribute('data-prayer-banner', '1');
+  banner.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,rgba(10,35,22,.99),rgba(3,10,6,1));border:2px solid rgba(201,168,76,.7);border-radius:18px;padding:1.3rem 1.5rem;max-width:360px;width:93%;box-shadow:0 12px 50px rgba(0,0,0,.7),0 0 40px rgba(201,168,76,.2);z-index:99999;animation:notifSlide .3s cubic-bezier(.22,1,.36,1) forwards;direction:rtl;font-family:Tajawal,sans-serif;text-align:center;';
+  banner.innerHTML = `
+    <div style="font-size:2.5rem;margin-bottom:.5rem;filter:drop-shadow(0 0 12px rgba(201,168,76,.5))">🕌</div>
+    <div style="font-family:'Scheherazade New',serif;font-size:1.4rem;color:#f0d080;font-weight:700;margin-bottom:.25rem">حان وقت ${prayerName}</div>
+    <div style="font-size:.75rem;color:rgba(255,255,255,.5);margin-bottom:1rem">${pDate.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}</div>
+    <div style="display:flex;gap:.6rem;justify-content:center;">
+      <button onclick="this.closest('[data-prayer-banner]').remove();_fireAdhan()" style="background:linear-gradient(135deg,rgba(201,168,76,.25),rgba(201,168,76,.12));border:1.5px solid rgba(201,168,76,.5);color:#f0d080;font-family:Tajawal,sans-serif;font-size:.85rem;font-weight:600;padding:.5rem 1.3rem;border-radius:50px;cursor:pointer;">🔊 الأذان</button>
+      <button onclick="this.closest('[data-prayer-banner]').remove()" style="background:none;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.5);font-family:Tajawal,sans-serif;font-size:.85rem;padding:.5rem 1.3rem;border-radius:50px;cursor:pointer;">إغلاق</button>
+    </div>`;
+  document.body.appendChild(banner);
+  // يختفي تلقائياً بعد 30 ثانية
+  setTimeout(() => { if(banner.parentNode) banner.remove(); }, 30000);
+}
+
+function _fireAdhan(){
+  // حاول أولاً الدوال الموجودة
+  if(typeof playAdhanNow === 'function'){ playAdhanNow(); return; }
+  if(typeof adhan2PlayToggle === 'function'){ adhan2PlayToggle(); return; }
+
+  // fallback — تشغيل مباشر
+  const sheikh = (typeof ADHAN_SHEIKHS !== 'undefined' && ADHAN_SHEIKHS)
+    ? ADHAN_SHEIKHS[(typeof adhanSheikhIdx !== 'undefined' ? adhanSheikhIdx : 0)]
+    : null;
+  if(!sheikh) return;
+
+  let aud = window._autoAdhanAud;
+  if(!aud){ aud = new Audio(); window._autoAdhanAud = aud; }
+  aud.pause();
+
+  const urls = [...(sheikh.urls || [])];
+  function tryNext(){
+    if(!urls.length){ console.log('Adhan: no URLs'); return; }
+    aud.src = urls.shift();
+    aud.volume = 1.0;
+    aud.play().catch(e => {
+      console.log('Adhan play failed:', e.message, '— trying next');
+      tryNext();
+    });
+  }
+  tryNext();
+}
+
+// ═══ تشغيل الفحص كل 10 ثواني للدقة ═══
+setInterval(checkAutoAdhan, 10000);
+// فحص فوري بعد 5 ثواني من فتح الصفحة
+setTimeout(checkAutoAdhan, 5000);
 
 // ════════════════ بحث في آيات السورة ════════════════
 function searchInSurah(query){
@@ -6322,23 +6123,31 @@ async function _loadAITafsir(sn, bookName, surahAr){
   const ayahsPrompt = ayahs.map(a => `[${a.n}] ﴿${a.text}﴾`).join('\n');
 
   try{
-    setP(50, 'جارٍ الاتصال بالذكاء الاصطناعي...');
-    const data = await callClaudeAPI({
-      max_tokens: 4096,
-      system: `أنت عالم متخصص في التفسير القرآني بأسلوب ${bookName}.
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true',
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 4096,
+        system: `أنت عالم متخصص في التفسير القرآني بأسلوب ${bookName}.
 فسّر كل آية على حدة بالترتيب. لكل آية:
 1. اذكر رقم الآية ونصها بين ﴿ ﴾
 2. فسّرها تفسيراً وافياً واضحاً (3-5 جمل)
 3. فصل بين كل آية وأخرى بسطر فارغ
 الأسلوب: ${bookName} — العربية الفصحى فقط — لا تكتب مقدمة أو خاتمة`,
-      messages: [{
-        role: 'user',
-        content: `فسّر آيات سورة ${surahAr || 'رقم ' + sn} (${ayCount} آية) كلها بالترتيب:\n\n${ayahsPrompt}`
-      }]
+        messages: [{
+          role: 'user',
+          content: `فسّر آيات سورة ${surahAr || 'رقم ' + sn} (${ayCount} آية) كلها بالترتيب:\n\n${ayahsPrompt}`
+        }]
+      })
     });
 
     setP(75, 'جارٍ معالجة التفسير...');
-    if(data.error) throw new Error(data.error.message || 'API error');
+    const data = await resp.json();
     const txt  = data.content?.[0]?.text || '';
 
     if(!txt){
@@ -6550,81 +6359,6 @@ function saveKhatmaToCalendar(){
   const inp = document.getElementById('k-start');
   if(inp){ const d=new Date(); inp.value=d.toISOString().split('T')[0]; }
 })();
-
-
-// ════════════════════════════════════════════════════════════════
-// 🔐 نظام تسجيل الدخول
-// ════════════════════════════════════════════════════════════════
-
-function updateAuthUI(user) {
-  const screen = document.getElementById('auth-screen');
-  if (user) {
-    // إخفاء شاشة تسجيل الدخول
-    if (screen) { screen.classList.add('hidden'); setTimeout(()=>{screen.style.display='none'},400); }
-    // تحديث زر الناف
-    const btn = document.getElementById('nav-auth-btn');
-    if (btn) {
-      const img = user.photoURL
-        ? `<img src="${user.photoURL}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;" />`
-        : '👤';
-      btn.innerHTML = img + ' ' + (user.displayName?.split(' ')[0] || 'حسابي');
-      btn.style.display = 'flex';
-    }
-    // إخفاء زر تسجيل الدخول
-    const loginBtn = document.getElementById('nav-login-btn');
-    if (loginBtn) loginBtn.style.display = 'none';
-  } else {
-    // عرض شاشة تسجيل الدخول لو مش ضيف
-    if (!localStorage.getItem('_guest_mode') && screen) {
-      screen.style.display = 'flex';
-      screen.classList.remove('hidden');
-    }
-    const btn = document.getElementById('nav-auth-btn');
-    if (btn) btn.style.display = 'none';
-    const loginBtn = document.getElementById('nav-login-btn');
-    if (loginBtn) loginBtn.style.display = 'flex';
-  }
-}
-
-function continueAsGuest() {
-  localStorage.setItem('_guest_mode', '1');
-  const screen = document.getElementById('auth-screen');
-  if (screen) { screen.classList.add('hidden'); setTimeout(()=>{screen.style.display='none'},400); }
-  updateAuthUI(null);
-}
-
-function toggleUserPanel() {
-  const panel = document.getElementById('user-panel');
-  const user = window._fbUser;
-  if (!user) { continueAsGuest(); return; }
-  // تحديث بيانات البانر
-  const avatar = document.getElementById('up-avatar');
-  const name   = document.getElementById('up-name');
-  const email  = document.getElementById('up-email');
-  if (avatar) avatar.src = user.photoURL || '';
-  if (name)   name.textContent  = user.displayName || 'مستخدم';
-  if (email)  email.textContent = user.email || '';
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-}
-
-// إغلاق الـ panel لما تضغط بره
-document.addEventListener('click', e => {
-  const panel = document.getElementById('user-panel');
-  if (panel && !panel.contains(e.target) && !e.target.closest('#nav-auth-btn')) {
-    panel.style.display = 'none';
-  }
-});
-
-// لو مش عنده Firebase config بعد — اعمل skip تلقائي
-setTimeout(() => {
-  const cfg = document.querySelector('script[type="module"]');
-  if (!cfg || cfg.textContent.includes('YOUR_API_KEY')) {
-    // Firebase مش مُعدّ — skip auth
-    localStorage.setItem('_guest_mode', '1');
-    const screen = document.getElementById('auth-screen');
-    if (screen) screen.style.display = 'none';
-  }
-}, 1500);
 
 setTimeout(showDuaNotif, 20000);
 setInterval(showDuaNotif, 90 * 1000);
